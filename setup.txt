@@ -1,0 +1,11 @@
+python3 -m venv cb-macdtrading
+source cb-macdtrading/bin/activate
+pip install -r requirements.txt
+
+export COINBASE_API_KEY=organizations/a/apiKeys/a
+export COINBASE_API_SECRET="-----BEGIN EC PRIVATE KEY-----\nc\n-----END EC PRIVATE KEY-----\n"
+
+export AWS_ACCESS_KEY_ID=A
+export AWS_SECRET_ACCESS_KEY=f
+export S3_BUCKET=coinbase-crypto-trading-py-bucket
+export USE_DUMMY_ORDERS=True

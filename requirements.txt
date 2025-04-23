@@ -1,0 +1,6 @@
+coinbase-advanced-py
+boto3
+pandas
+requests
+ta
+python-dotenv

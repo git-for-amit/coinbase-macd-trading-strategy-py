@@ -172,3 +172,12 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# key files
+*.key
+
+# trade record file
+trade_record.json
+
+#cb-macdtrading virtual env
+cb-macdtrading/
