@@ -1,0 +1,6 @@
+coinbase-advanced-py    1.8.2
+boto3                   1.38.0
+pandas                  2.2.3 (not using this as it is present in ta)
+requests                2.32.3
+ta                      0.11.0 (not using the minimal version for this)
+python-dotenv           1.1.0
