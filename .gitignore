@@ -185,3 +185,6 @@ cb-macdtrading/
 #layers
 layers/python/*
 *.zip
+
+#macbook
+.DS_Store
