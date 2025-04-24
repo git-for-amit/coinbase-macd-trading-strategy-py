@@ -1,8 +1,10 @@
 import pandas as pd
 import requests
 from ta.trend import MACD
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 from jwt_token_gen import get_jwt_token
+
+UTC = timezone.utc
 
 request_method = "GET"
 request_path = "/api/v3/brokerage/products"
@@ -14,7 +16,7 @@ def get_macd_signals_using_candles(candles):
     # Format: [start, low, high, open, close, volume]
     df = pd.DataFrame(candles, columns=["start", "low", "high", "open", "close", "volume"])
     #df["start"] = pd.to_datetime(df["start"])
-    df["start"] = pd.to_datetime(df["start"], unit="s")
+    df["start"] = pd.to_datetime(df["start"].astype(int), unit="s")
     df.sort_values("start", inplace=True)
     df.reset_index(drop=True, inplace=True)
 

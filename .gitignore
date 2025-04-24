@@ -181,3 +181,7 @@ trade_record.json
 
 #cb-macdtrading virtual env
 cb-macdtrading/
+
+#layers
+layers/python/*
+*.zip

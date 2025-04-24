@@ -4,6 +4,8 @@ from datetime import datetime, timedelta, timezone
 import uuid
 from jwt_token_gen import get_jwt_token
 
+UTC = timezone.utc
+
 class CoinbaseAPI:
     BASE_URL = "https://api.coinbase.com"
     PRODUCT_BASE_PATH = "/api/v3/brokerage/products"
@@ -62,7 +64,7 @@ class CoinbaseAPI:
         token = get_jwt_token("POST", path)
         url = f"{self.BASE_URL}{path}"
         headers = self._headers(token)
-        end_time = (datetime.now(timezone.utc) + timedelta(minutes=7)).isoformat()
+        end_time = (datetime.now(UTC) + timedelta(minutes=7)).isoformat()
         payload = {
             "client_order_id": str(uuid.uuid4()),
             "product_id": product_id,
@@ -85,7 +87,7 @@ class CoinbaseAPI:
         token = get_jwt_token("POST", path)
         url = f"{self.BASE_URL}{path}"
         headers = self._headers(token)
-        end_time = (datetime.utcnow() + timedelta(minutes=7)).isoformat("T") + "Z"
+        end_time = (datetime.now(UTC) + timedelta(minutes=7)).isoformat()
         payload = {
             "client_order_id": str(uuid.uuid4()),
             "product_id": product_id,
