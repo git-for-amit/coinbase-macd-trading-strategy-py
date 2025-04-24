@@ -2,7 +2,11 @@ import os
 import logging
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+
+if logger.hasHandlers():
+    logger.setLevel(logging.INFO)
+else:
+    logging.basicConfig(level=logging.INFO)
 
 
 def read_cb_key_file():

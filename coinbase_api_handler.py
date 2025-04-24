@@ -3,6 +3,14 @@ import requests
 from datetime import datetime, timedelta, timezone
 import uuid
 from jwt_token_gen import get_jwt_token
+import logging
+
+logger = logging.getLogger()
+
+if logger.hasHandlers():
+    logger.setLevel(logging.INFO)
+else:
+    logging.basicConfig(level=logging.INFO)
 
 UTC = timezone.utc
 

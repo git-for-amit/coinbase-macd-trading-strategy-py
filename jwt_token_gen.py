@@ -1,6 +1,14 @@
 from coinbase import jwt_generator
 
 from util import read_cb_key_file
+import logging
+
+logger = logging.getLogger()
+
+if logger.hasHandlers():
+    logger.setLevel(logging.INFO)
+else:
+    logging.basicConfig(level=logging.INFO)
 
 API_KEY, API_SECRET = read_cb_key_file()
 
