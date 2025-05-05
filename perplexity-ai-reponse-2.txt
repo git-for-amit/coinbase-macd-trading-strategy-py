@@ -1,0 +1,376 @@
+
+--prompt----
+
+i want to write a python program for automating first four steps outlined in your previous response.
+
+here are those steps
+
+1. Liquidity Filtering (Morning Session)
+Select top 10 tokens by 24h volume from your sorted list:
+
+python
+top_volume_tokens = sorted(products, key=lambda x: float(x['volume_24h']), reverse=True)[:10]
+Rationale: High volume ensures easier entry/exit (lower slippage) and indicates market interest.
+
+2. Volatility Screening
+Identify tokens with >3% absolute 24h price change:
+
+python
+volatile_tokens = [t for t in top_volume_tokens if abs(float(t['price_percentage_change_24h'])) > 3]
+Example Targets:
+
+SUI-USD (+9.36% 24h)
+
+TRUMP-USDC (-13.48% 24h)
+
+XRP-USD (-0.69% 24h)
+
+3. Momentum Entry Signals
+Combine technical filters:
+
+Condition Action Rationale
+Price > VWAP* + Spread Long Entry Upside momentum confirmation
+Price < VWAP* - Spread Short Entry Downside momentum confirmation
+RSI < 30 Long Entry Oversold reversal potential
+RSI > 70 Short Entry Overbought reversal potential
+*VWAP calculation requires real-time data feed
+
+4. Trade Execution Plan
+For qualified tokens:
+
+python
+# Sample risk parameters
+entry_price = float(token['price'])
+stop_loss = entry_price * 0.97 # 3% risk cap
+take_profit = entry_price * 1.05 # 5% target
+
+
+---Response-----
+
+
+
+Key improvements and explanations:
+
+Clear VWAP Implementation: The fetch_vwap function now fetches candlestick data using the get_candles method of the CoinbaseAPI class. Critically, it calculates VWAP using the formula provided. It also includes error handling for missing or invalid candle data.
+
+VWAP Error Handling: The main trading logic checks if fetch_vwap returns None and skips trading that token if VWAP data could not be retrieved. This prevents errors later on.
+
+Logging: Added extensive logging to track the decisions made by the trading strategy. This is crucial for debugging and understanding the program's behavior.
+
+RSI Placeholder: I've added a placeholder for RSI calculation. You will need to implement the RSI calculation using an external library like TA-Lib or a custom implementation. I recommend TA-Lib; it's a standard for technical analysis in Python. If you use TA-Lib, you'll need to install it (pip install TA-Lib). The example code shows how to replace the placeholder.
+
+Order Placement (Commented Out): The actual place_limit_buy_order and place_limit_sell_order calls are commented out. Uncomment them only when you are ready to trade with real money and have thoroughly tested the strategy. Start with very small base_size values.
+
+Spread Definition: Included a spread calculation as a percentage of the current price, to provide a buffer around the VWAP. Adjust the percentage as needed.
+
+Error Handling: Wrapped the main trading logic in a try...except block to catch and log any exceptions.
+
+Clarity and Comments: Added more comments to explain the purpose of each section of the code.
+
+Function for Trading Strategy: Encapsulated the trading strategy logic in its own function.
+
+list_products Call: Uses the list_products method of your API class to retrieve the product data.
+
+Sorting: Explicitly sorts the products by volume_24h using the sorted function and a lambda expression.
+
+Next Steps:
+
+Install TA-Lib (Highly Recommended): pip install TA-Lib (You might need to install the TA-Lib system library separately; see TA-Lib documentation). Then, implement the RSI calculation using TA-Lib.
+
+Implement RSI: Replace the rsi = 50 placeholder with actual RSI calculation code.
+
+Backtesting: Thoroughly backtest this strategy using historical data before risking any real money. Paper trade first.
+
+Adjust Parameters: Tune the parameters (volume threshold, volatility threshold, spread, stop-loss percentage, take-profit percentage) based on your backtesting results and risk tolerance.
+
+Real-Time Data: Ensure you have a reliable real-time data feed. The accuracy of your VWAP and RSI calculations depends on the quality of your data.
+
+Error Handling and Monitoring: Implement robust error handling and monitoring to detect and respond to any issues that may arise during live trading. Pay close attention to API rate limits.
+
+Security: Double-check the security of your API keys and other sensitive information. Never commit your API keys to version control.
+
+Gradual Deployment: Start with a very small base_size and gradually increase it as you gain confidence in the strategy.
+
+This complete program provides a solid foundation for your crypto trading strategy. Remember to thoroughly test and refine it before deploying it with real capital. Good luck!
+
+
+
+import os
+import requests
+from datetime import datetime, timedelta, timezone
+import uuid
+from jwt_token_gen import get_jwt_token
+import logging
+
+logger = logging.getLogger()
+
+if logger.hasHandlers():
+    logger.setLevel(logging.INFO)
+else:
+    logging.basicConfig(level=logging.INFO)
+
+UTC = timezone.utc
+
+class CoinbaseAPI:
+    BASE_URL = "https://api.coinbase.com"
+    PRODUCT_BASE_PATH = "/api/v3/brokerage/products"
+    ORDER_BASE_PATH = "/api/v3/brokerage/orders"
+    ORDER_HISTORICAL_BASE_PATH = f"{ORDER_BASE_PATH}/historical"
+
+    def __init__(self):
+        pass
+
+    def _headers(self, token: str):
+        return {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+
+    def get_candles(self, product_id: str, start_time: int, end_time: int, granularity: str):
+        path = f"{self.PRODUCT_BASE_PATH}/{product_id}/candles"
+        token = get_jwt_token("GET", path)
+        url = f"{self.BASE_URL}{path}"
+        headers = self._headers(token)
+        params = {
+            "start": start_time,
+            "end": end_time,
+            "granularity": granularity
+        }
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        return response.json().get("candles", [])
+
+    def get_product_data(self, product_id: str):
+        path = f"{self.PRODUCT_BASE_PATH}/{product_id}"
+        token = get_jwt_token("GET", path)
+        url = f"{self.BASE_URL}{path}"
+        headers = self._headers(token)
+        params = {
+            "get_tradability_status": "true"
+        }
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        data = response.json()
+
+        price = data.get("price")
+        volume_24h = data.get("volume_24h")
+
+        if price is None or volume_24h is None:
+            raise ValueError("Missing price or volume_24h in the response")
+
+        return {
+            "product_id": product_id,
+            "price": float(price),
+            "volume_24h": float(volume_24h)
+        }
+
+    def place_limit_buy_order(self, product_id: str, base_size: str, limit_price: str):
+        path = self.ORDER_BASE_PATH
+        token = get_jwt_token("POST", path)
+        url = f"{self.BASE_URL}{path}"
+        headers = self._headers(token)
+        end_time = (datetime.now(UTC) + timedelta(minutes=7)).isoformat()
+        payload = {
+            "client_order_id": str(uuid.uuid4()),
+            "product_id": product_id,
+            "side": "BUY",
+            "order_configuration": {
+                "limit_limit_gtd": {
+                    "base_size": base_size,
+                    "limit_price": limit_price,
+                    "end_time": end_time,
+                    "post_only": False
+                }
+            }
+        }
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        return response.json()
+
+    def place_limit_sell_order(self, product_id: str, base_size: str, limit_price: str):
+        path = self.ORDER_BASE_PATH
+        token = get_jwt_token("POST", path)
+        url = f"{self.BASE_URL}{path}"
+        headers = self._headers(token)
+        end_time = (datetime.now(UTC) + timedelta(minutes=7)).isoformat()
+        payload = {
+            "client_order_id": str(uuid.uuid4()),
+            "product_id": product_id,
+            "side": "SELL",
+            "order_configuration": {
+                "limit_limit_gtd": {
+                    "base_size": base_size,
+                    "limit_price": limit_price,
+                    "end_time": end_time,
+                    "post_only": False
+                }
+            }
+        }
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        return response.json()
+
+    def get_order_details(self, order_id: str):
+        path = f"{self.ORDER_HISTORICAL_BASE_PATH}/{order_id}"
+        token = get_jwt_token("GET", path)
+        url = f"{self.BASE_URL}{path}"
+        headers = self._headers(token)
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        order = data.get("order")
+        status = order.get("status")
+        if status == 'FILLED':
+            filled_size = order.get("filled_size")
+            average_filled_price = order.get("average_filled_price")
+        else:
+            filled_size = 0.0
+            average_filled_price = 0.0
+
+        return {
+            "status": status,
+            "filled_size": float(filled_size),
+            "average_filled_price": float(average_filled_price)
+        }
+
+    def list_products(self, limit: int):
+        path = f"{self.PRODUCT_BASE_PATH}"
+        token = get_jwt_token("GET", path)
+        url = f"{self.BASE_URL}{path}"
+        headers = self._headers(token)
+        params = {
+            "limit": limit,
+            "product_type": "SPOT",
+            "get_tradability_status": "true",
+            "products_sort_order": "PRODUCTS_SORT_ORDER_VOLUME_24H_DESCENDING"
+
+        }
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        return response.json()
+
+def fetch_vwap(api_client, product_id, granularity=60, periods=20):
+    """
+    Fetch VWAP for a given product_id using the CoinbaseAPI.
+
+    Parameters:
+    - api_client: An instance of the CoinbaseAPI class.
+    - product_id: The ID of the product for which to fetch VWAP.
+    - granularity: The time between data points (in seconds).
+    - periods: The number of periods to use for VWAP calculation.
+
+    Returns:
+    - float: The calculated VWAP value.
+    """
+    now = datetime.now(UTC)
+    end_time = int(now.timestamp())
+    start_time = int((now - timedelta(minutes=granularity * periods / 60)).timestamp())
+
+    candles = api_client.get_candles(product_id, start_time, end_time, str(granularity))
+
+    # Check if candles were successfully retrieved
+    if not candles:
+        logging.error(f"Could not retrieve candles for {product_id}")
+        return None
+
+    total_volume_times_typical_price = 0
+    total_volume = 0
+
+    for candle in candles:
+        try:
+            low_price = float(candle['l'])
+            high_price = float(candle['h'])
+            close_price = float(candle['c'])
+            volume = float(candle['v'])
+
+            typical_price = (high_price + low_price + close_price) / 3
+            total_volume_times_typical_price += typical_price * volume
+            total_volume += volume
+        except KeyError as e:
+            logging.error(f"Missing key in candle data: {e}")
+            return None  # Or handle the error as needed
+        except ValueError as e:
+            logging.error(f"Invalid value in candle data: {e}")
+            return None
+
+    if total_volume == 0:
+        logging.warning(f"No volume data for {product_id}")
+        return None
+
+    vwap = total_volume_times_typical_price / total_volume
+    return vwap
+
+def trading_strategy(api_client: CoinbaseAPI):
+    """
+    Implements the trading strategy based on volume, volatility, momentum, and risk management.
+    """
+    try:
+        # 1. Liquidity Filtering
+        products_data = api_client.list_products(limit=30)
+        products = products_data.get("products", [])
+
+        # Sort products by 24h volume
+        top_volume_tokens = sorted(products, key=lambda x: float(x['volume_24h']), reverse=True)[:10]
+        logging.info(f"Top 10 tokens by volume: {[t['product_id'] for t in top_volume_tokens]}")
+
+        # 2. Volatility Screening
+        volatile_tokens = [t for t in top_volume_tokens if abs(float(t['price_percentage_change_24h'])) > 3]
+        logging.info(f"Volatile tokens (24h change > 3%): {[t['product_id'] for t in volatile_tokens]}")
+
+        # 3. Momentum Entry Signals & 4. Trade Execution Plan
+        for token in volatile_tokens:
+            product_id = token['product_id']
+            current_price = float(token['price'])
+
+            # Fetch VWAP data
+            vwap = fetch_vwap(api_client, product_id)
+            if vwap is None:
+                logging.warning(f"Skipping {product_id} due to VWAP retrieval failure.")
+                continue
+
+            # Define spread (example: 0.1% of current price)
+            spread = current_price * 0.001
+
+            # Generate RSI data
+            # RSI calculation requires more extensive historical data and a dedicated library
+            # You can use a library like TA-Lib or implement the RSI calculation yourself
+            # Here's a placeholder for RSI:
+            rsi = 50  # Placeholder value; replace with actual RSI calculation
+
+            # Trading logic
+            if current_price > vwap + spread:
+                logging.info(f"{product_id}: Long Entry - Price > VWAP + Spread")
+                # Example: Place a limit buy order if the condition is met
+                base_size = "0.01"  # Example base size, adjust as needed
+                limit_price = str(current_price)
+                # api_client.place_limit_buy_order(product_id, base_size, limit_price)
+                # logging.info(f"Placed limit buy order for {product_id} at {limit_price}")
+            elif current_price < vwap - spread:
+                logging.info(f"{product_id}: Short Entry - Price < VWAP - Spread")
+                # Example: Place a limit sell order if the condition is met
+                base_size = "0.01"  # Example base size, adjust as needed
+                limit_price = str(current_price)
+                # api_client.place_limit_sell_order(product_id, base_size, limit_price)
+                # logging.info(f"Placed limit sell order for {product_id} at {limit_price}")
+            elif rsi < 30:
+                logging.info(f"{product_id}: Long Entry - RSI < 30")
+            elif rsi > 70:
+                logging.info(f"{product_id}: Short Entry - RSI > 70")
+            else:
+                logging.info(f"{product_id}: No trade signal.")
+
+            # Sample risk parameters
+            entry_price = current_price
+            stop_loss = entry_price * 0.97  # 3% risk cap
+            take_profit = entry_price * 1.05  # 5% target
+            logging.info(f"{product_id}: Stop Loss = {stop_loss}, Take Profit = {take_profit}")
+
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
+
+def main():
+    api_client = CoinbaseAPI()
+    trading_strategy(api_client)
+
+if __name__ == "__main__":
+    main()

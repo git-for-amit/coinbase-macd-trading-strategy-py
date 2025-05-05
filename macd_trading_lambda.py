@@ -103,11 +103,23 @@ def lambda_handler(event, context):
         return
     elif trade_state.get("status") == "PENDING_SELL":
         sell_details = api.get_order_details(trade_state["sell_order_id"])
-        if sell_details["status"] == "FILLED" or sell_details["status"] == "EXPIRED" or sell_details["status"] == "CANCELLED":
+        if sell_details["status"] == "FILLED":
             logger.info(f"Sell order filled: {sell_details}")
             trade_state = {}
             trade_record[PRODUCT_ID] = trade_state
             save_trade_record(trade_record)
+        elif sell_details["status"] == "EXPIRED" or sell_details["status"] == "CANCELLED":
+            buy_details = api.get_order_details(trade_state["buy_order_id"])
+            if buy_details["status"] == "FILLED":
+                logger.info(f"Sell order Expired or canclled: {sell_details}")
+                trade_state.update({
+                    "sell_order_id":  "",
+                    "status": "FILLED_BUY",
+                    "sell_price": 0
+                })
+                logger.info(f"updated trade sate in the file")
+                trade_record[PRODUCT_ID] = trade_state
+                save_trade_record(trade_record)
         return
     elif trade_state.get("status") == "PENDING_BUY":
         buy_details = api.get_order_details(trade_state["buy_order_id"])
@@ -142,7 +154,7 @@ def lambda_handler(event, context):
 
         if order_response.get("success") == True:
             order_id = order_response.get("success_response").get("order_id")
-            logger.info(f"Buy order placed: {order_id}")
+            logger.info(f"Buy order placed: {order_response}")
             trade_state.update({
                 "buy_order_id": order_id,
                 "status": "PENDING_BUY",

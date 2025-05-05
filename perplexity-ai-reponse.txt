@@ -1,0 +1,91 @@
+--------Prompt--------
+
+can you outline steps for trading strategy that involves identifying crypto token for buying and selling during a day and also when that token is bought and sold during the day it can result into a potential upside of 5% or more
+
+Given that we have list of 30 tokens in a json response.
+
+This response is sorted based on volume_24h
+
+It also contains the price_percentage_change_24h
+
+here is the complete response for 30 tokens
+
+
+
+
+--------Response-----
+Here's a step-by-step intraday trading strategy using the provided crypto token data to target 5%+ gains:
+
+1. Liquidity Filtering (Morning Session)
+Select top 10 tokens by 24h volume from your sorted list:
+
+python
+top_volume_tokens = sorted(products, key=lambda x: float(x['volume_24h']), reverse=True)[:10]
+Rationale: High volume ensures easier entry/exit (lower slippage) and indicates market interest.
+
+2. Volatility Screening
+Identify tokens with >3% absolute 24h price change:
+
+python
+volatile_tokens = [t for t in top_volume_tokens if abs(float(t['price_percentage_change_24h'])) > 3]
+Example Targets:
+
+SUI-USD (+9.36% 24h)
+
+TRUMP-USDC (-13.48% 24h)
+
+XRP-USD (-0.69% 24h)
+
+3. Momentum Entry Signals
+Combine technical filters:
+
+Condition	Action	Rationale
+Price > VWAP* + Spread	Long Entry	Upside momentum confirmation
+Price < VWAP* - Spread	Short Entry	Downside momentum confirmation
+RSI < 30	Long Entry	Oversold reversal potential
+RSI > 70	Short Entry	Overbought reversal potential
+*VWAP calculation requires real-time data feed
+
+4. Trade Execution Plan
+For qualified tokens:
+
+python
+# Sample risk parameters
+entry_price = float(token['price'])
+stop_loss = entry_price * 0.97  # 3% risk cap
+take_profit = entry_price * 1.05  # 5% target
+5. Session-Based Management
+Intraday timing framework:
+
+Morning (9-11 AM Local)
+
+Monitor pre-market volume surges
+
+Execute 60% of daily position size
+
+Midday (1-3 PM)
+
+Trail stops on winning positions
+
+Close 50% position at 3% gain
+
+Afternoon (3-4:30 PM)
+
+Liquidate all positions
+
+Avoid overnight risk exposure
+
+6. Risk Controls
+Maximum 2% capital per trade
+
+Hard stop-loss at -3%
+
+Profit-taking schedule:
+
+50% at +3%
+
+30% at +5%
+
+20% runner with trailing stop
+
+This strategy requires real-time price data integration and rapid execution capabilities. The 24h metrics help identify candidates, but intraday price action should confirm entries.

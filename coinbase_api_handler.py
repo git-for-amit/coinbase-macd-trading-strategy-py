@@ -135,3 +135,19 @@ class CoinbaseAPI:
             "filled_size": float(filled_size),
             "average_filled_price": float(average_filled_price)
         }
+
+    def list_products(self, limit: int):
+        path = f"{self.PRODUCT_BASE_PATH}"
+        token = get_jwt_token("GET", path)
+        url = f"{self.BASE_URL}{path}"
+        headers = self._headers(token)
+        params = {
+            "limit": limit,
+            "product_type": "SPOT",
+            "get_tradability_status": "true",
+            "products_sort_order": "PRODUCTS_SORT_ORDER_VOLUME_24H_DESCENDING"
+
+        }
+        response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        return response.json()
